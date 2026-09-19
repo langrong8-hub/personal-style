@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Bookmark, BookmarkCheck, Check, ChevronDown, Clock3, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getLearningStatus, useStore, type LearningStatus } from '@/components/store';
-import { cases, categories, comparisons, lessons, reasons, type CaseStudy, type Lesson } from '@/lib/data';
+import { cases, categories, comparisons, itemGroups, lessons, reasons, type CaseStudy, type Lesson } from '@/lib/data';
 
 function PageHead({ index, eyebrow, title, intro }: { index: string; eyebrow: string; title: string; intro: string }) {
   return <header className="page-head"><span className="folio">{index}</span><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{intro}</p></div></header>;
@@ -55,19 +55,34 @@ export function HomePage() {
 }
 
 export function LearnPage() {
-  const principles = lessons.filter(x => x.kind === 'principle'); const items = lessons.filter(x => x.kind === 'item');
+  const principles = lessons.filter(x => x.kind === 'principle');
+  const [mode,setMode] = useState<'principles'|'items'>('principles');
   const [filter,setFilter] = useState('全部');
   const shown = filter === '全部' ? principles : principles.filter(x => x.category === filter);
-  return <div className="page"><PageHead index="01" eyebrow="LEARN / 学" title="先理解，再选择。" intro="从比例、轮廓与颜色开始，把模糊的感觉变成可以观察、比较和反复练习的线索。"/>
-    <div className="filter-bar" aria-label="知识分类">{['全部',...categories].map(c=><button className={filter===c?'active':''} onClick={()=>setFilter(c)} key={c}>{c}</button>)}</div>
-    <section className="content-section"><SectionTitle kicker="FOUNDATIONS" title="基础原理"/><div className="lesson-list">{shown.map((l,i)=><LessonRow key={l.id} item={l} number={i}/>)}</div></section>
-    <section className="content-section"><SectionTitle kicker="ITEM NOTES" title="单品知识"/><div className="item-lessons">{items.map((item,i)=><Link href={`/learn/${item.id}`} key={item.id}><span className="item-number">0{i+1}</span><span className="eyebrow">{item.category}</span><h3>{item.title}</h3><p>{item.subtitle}</p><ArrowRight size={18}/></Link>)}</div></section>
+  return <div className="page learn-page"><PageHead index="01" eyebrow="LEARN / 学" title="先理解，再选择。" intro="从基础原理理解穿搭关系，也从具体单品练习观察。两个入口同样重要，你可以随时切换。"/>
+    <div className="learn-mode-tabs" role="tablist" aria-label="学习内容入口">
+      <button id="principles-tab" role="tab" aria-selected={mode==='principles'} aria-controls="principles-panel" className={mode==='principles'?'active':''} onClick={()=>setMode('principles')}><span>01</span><strong>基础原理</strong><small>先理解比例、色彩与轮廓</small></button>
+      <button id="items-tab" role="tab" aria-selected={mode==='items'} aria-controls="items-panel" className={mode==='items'?'active':''} onClick={()=>setMode('items')}><span>02</span><strong>单品知识</strong><small>从真实穿着认识具体单品</small></button>
+    </div>
+    {mode==='principles' ? <div id="principles-panel" role="tabpanel" aria-labelledby="principles-tab">
+      <div className="filter-bar" aria-label="基础原理分类">{['全部',...categories].map(c=><button className={filter===c?'active':''} aria-pressed={filter===c} onClick={()=>setFilter(c)} key={c}>{c}</button>)}</div>
+      <section className="content-section"><SectionTitle kicker="FOUNDATIONS" title="基础原理"/><div className="lesson-list">{shown.map((l,i)=><LessonRow key={l.id} item={l} number={i}/>)}</div></section>
+    </div> : <div id="items-panel" role="tabpanel" aria-labelledby="items-tab">
+      <section className="content-section item-knowledge"><SectionTitle kicker="ITEM KNOWLEDGE" title="从一个单品开始观察"/><div className="item-group-grid">{itemGroups.map((group,index)=>{
+        const groupLessons=group.lessonIds.map(id=>lessons.find(item=>item.id===id)).filter((item): item is Lesson=>Boolean(item));
+        return <article className="item-group" key={group.id}><header><span className="item-number">{String(index+1).padStart(2,'0')}</span><div><h2>{group.title}</h2><p>{group.intro}</p></div></header><div className="subtype-list" aria-label={`${group.title}子类`}>{group.subtypes.map(type=><span key={type}>{type}</span>)}</div><div className="item-group-lessons">{groupLessons.map(item=><Link href={`/learn/${item.id}`} key={item.id}><div><span className="eyebrow">{item.category} · {item.minutes} MIN</span><h3>{item.title}</h3></div><ArrowRight size={17}/></Link>)}</div></article>;
+      })}</div></section>
+    </div>}
   </div>;
 }
 
 function CompareIllustration({ variable, choice }: { variable: Lesson['variable']; choice: 'a'|'b' }) {
   const tucked = variable === 'waist' && choice === 'b'; const wide = variable === 'shape' && choice === 'b'; const dark = variable === 'color' && choice === 'b';
   return <svg className="outfit-figure" viewBox="0 0 240 330" role="img" aria-label="穿搭差异示意图"><circle cx="120" cy="37" r="22" fill="#cdb7a2"/><path d="M99 63 Q120 54 141 63 L165 162 Q144 174 120 174 Q96 174 75 162Z" fill="#ded8cc"/><path d="M100 61 L77 71 L51 145 L68 151 L94 95" fill="#ded8cc"/><path d="M140 61 L163 71 L189 145 L172 151 L146 95" fill="#ded8cc"/>{tucked ? <path d="M83 153 L157 153 L153 184 L87 184Z" fill="#ded8cc"/> : <path d="M76 145 Q120 158 164 145 L160 195 Q120 208 80 195Z" fill="#ded8cc"/>}<path d={wide ? 'M84 176 L117 176 L110 305 L64 305Z' : 'M88 176 L116 176 L108 305 L81 305Z'} fill={dark?'#4c463e':'#bcae98'}/><path d={wide ? 'M123 176 L156 176 L176 305 L130 305Z' : 'M124 176 L152 176 L159 305 L132 305Z'} fill={dark?'#4c463e':'#bcae98'}/><path d="M72 305 H109 V314 H67Z M131 305 H168 L173 314 H132Z" fill="#34332f"/>{tucked && <path d="M84 171 H156" stroke="#827665" strokeWidth="3"/>}</svg>;
+}
+
+function ComparePhoto({ src, alt, position, label }: { src: string; alt: string; position: string; label: string }) {
+  return <div className="compare-photo" style={{position:'relative'}}><Image src={src} alt={alt} fill sizes="(max-width: 700px) 50vw, 40vw" style={{objectPosition:position}}/><span>{label}</span></div>;
 }
 
 export function LessonDetail({ id }: { id: string }) {
@@ -89,7 +104,7 @@ export function ExplorePage() {
   const { state } = useStore(); const saved = cases.filter(x => state.saved[x.id]);
   return <div className="page"><PageHead index="02" eyebrow="EXPLORE / 看" title="多看一眼，看到原因。" intro="先感受整体，再拆开观察。一套穿搭不需要被打分，只需要帮你更清楚地知道自己在看什么。"/>
     <section className="content-section"><SectionTitle kicker="CASE STREAM" title="案例流"/><div className="case-grid">{cases.map((item,i)=><CaseCard key={item.id} item={item} large={i===0}/>)}</div></section>
-    <section className="comparison-banner"><div><span className="eyebrow">A / B COMPARISON</span><h2>一次，只改变一个变量。</h2><p>先判断差异，再理解两个方案各自产生的视觉效果。</p><Button asChild><Link href="/explore/compare">开始 A/B 对比 <ArrowRight size={15}/></Link></Button></div><div className="mini-pair"><CompareIllustration variable="waist" choice="a"/><CompareIllustration variable="waist" choice="b"/></div></section>
+    <section className="comparison-banner"><div><span className="eyebrow">A / B COMPARISON</span><h2>一次，只改变一个变量。</h2><p>先看真人穿着、做出判断，再理解两种方案各自产生的视觉效果。</p><Button asChild><Link href="/explore/compare">开始 A/B 对比 <ArrowRight size={15}/></Link></Button></div><div className="mini-pair"><ComparePhoto src={comparisons[0].imageA} position={comparisons[0].positionA} alt="真人穿搭 A，对比衣摆自然放下" label="A"/><ComparePhoto src={comparisons[0].imageB} position={comparisons[0].positionB} alt="真人穿搭 B，对比衣摆收入腰头" label="B"/></div></section>
     <section className="content-section"><SectionTitle kicker="MY SAVES" title="我的收藏" link="/me" linkLabel="查看收藏笔记"/>{saved.length?<div className="saved-strip">{saved.map(x=><CaseCard key={x.id} item={x}/>)}</div>:<div className="empty-inline"><Bookmark size={22}/><p>还没有收藏。遇见喜欢的案例时，也记下“为什么喜欢”。</p></div>}</section>
   </div>;
 }
@@ -98,7 +113,7 @@ export function ComparePage() {
   const { state, update }=useStore(); const [index,setIndex]=useState(0); const [revealed,setRevealed]=useState(false); const item=comparisons[index]; const choice=state.choices[item.id] as 'a'|'b'|undefined;
   function choose(value:'a'|'b'){setRevealed(false);update(s=>({...s,choices:{...s.choices,[item.id]:value}}));}
   function move(next:number){setRevealed(false);setIndex(next)}
-  return <div className="page compare-page"><Link className="back-link" href="/explore"><ArrowLeft size={15}/> 返回案例流</Link><PageHead index={`${index+1}/${comparisons.length}`} eyebrow="A / B COMPARISON" title={item.title} intro={item.variable}/><div className="single-variable"><span>本组唯一变量</span><strong>{item.variable.replace('只改变','')}</strong></div><div className="compare-stage">{(['a','b'] as const).map(key=><button key={key} aria-pressed={choice===key} onClick={()=>choose(key)} className={choice===key?'selected':''}><span className="choice-letter">{key.toUpperCase()}</span><CompareIllustration variable={item.id as Lesson['variable']} choice={key}/><h2>{key==='a'?item.a:item.b}</h2>{choice===key&&<span className="picked"><Check size={14}/> 我的判断</span>}</button>)}</div>{choice&&!revealed&&<div className="reveal-action"><p>已经选好了吗？确认后再看两种方案分别产生什么视觉效果。</p><Button onClick={()=>setRevealed(true)}>确认判断，查看差异 <ArrowRight size={15}/></Button></div>}{choice&&revealed?<div className="effect-panel"><span className="eyebrow">DIFFERENCE / 差异</span><div><p><strong>A</strong>{item.effectA}</p><p><strong>B</strong>{item.effectB}</p></div><p className="effect-note">你的选择没有对错。它只是记录此刻更吸引你的视觉效果。</p></div>:!choice&&<p className="choose-hint">先选择更吸引你的一边，解释会在确认后出现。</p>}<div className="compare-nav"><Button variant="outline" disabled={index===0} onClick={()=>move(index-1)}><ArrowLeft size={15}/> 上一组</Button><span>{String(index+1).padStart(2,'0')} / {String(comparisons.length).padStart(2,'0')}</span><Button disabled={index===comparisons.length-1} onClick={()=>move(index+1)}>下一组 <ArrowRight size={15}/></Button></div></div>;
+  return <div className="page compare-page"><Link className="back-link" href="/explore"><ArrowLeft size={15}/> 返回案例流</Link><PageHead index={`${index+1}/${comparisons.length}`} eyebrow="A / B COMPARISON" title={item.title} intro={item.variable}/><div className="single-variable"><span>本组唯一变量</span><strong>{item.variable.replace('只改变','')}</strong></div><div className="compare-stage">{(['a','b'] as const).map(key=><button key={key} aria-pressed={choice===key} onClick={()=>choose(key)} className={choice===key?'selected':''}><span className="choice-letter">{key.toUpperCase()}</span><ComparePhoto src={key==='a'?item.imageA:item.imageB} position={key==='a'?item.positionA:item.positionB} alt={`真人穿搭 ${key.toUpperCase()}，${key==='a'?item.a:item.b}`} label={`真人穿着 ${key.toUpperCase()}`}/><h2>{key==='a'?item.a:item.b}</h2>{choice===key&&<span className="picked"><Check size={14}/> 我的判断</span>}</button>)}</div>{choice&&!revealed&&<div className="reveal-action"><p>已经选好了吗？确认后再看两种方案分别产生什么视觉效果。</p><Button onClick={()=>setRevealed(true)}>确认判断，查看差异 <ArrowRight size={15}/></Button></div>}{choice&&revealed?<div className="effect-panel"><span className="eyebrow">DIFFERENCE / 差异</span><div><p><strong>A</strong>{item.effectA}</p><p><strong>B</strong>{item.effectB}</p></div><p className="effect-note">你的选择没有对错。它只是记录此刻更吸引你的视觉效果。</p></div>:!choice&&<p className="choose-hint">先选择更吸引你的一边，解释会在确认后出现。</p>}<div className="compare-nav"><Button variant="outline" disabled={index===0} onClick={()=>move(index-1)}><ArrowLeft size={15}/> 上一组</Button><span>{String(index+1).padStart(2,'0')} / {String(comparisons.length).padStart(2,'0')}</span><Button disabled={index===comparisons.length-1} onClick={()=>move(index+1)}>下一组 <ArrowRight size={15}/></Button></div></div>;
 }
 
 function SavePanel({ item, close }: { item: CaseStudy; close:()=>void }) {
@@ -112,7 +127,12 @@ function SavePanel({ item, close }: { item: CaseStudy; close:()=>void }) {
 export function CaseDetail({ id }: { id: string }) {
   const item=cases.find(x=>x.id===id); const {state}=useStore(); const [saving,setSaving]=useState(false);
   if(!item)return <Missing/>; const saved=Boolean(state.saved[id]);
-  return <article className="case-detail"><div className="page"><Link className="back-link" href="/explore"><ArrowLeft size={15}/> 返回案例流</Link></div><header className="case-hero"><CaseImage item={item} sizes="(max-width: 800px) 100vw, 54vw" priority/><div><span className="eyebrow">CASE STUDY / 穿搭案例</span><h1>{item.title}</h1><p>{item.subtitle}</p><div className="tag-row">{item.tags.map(x=><span key={x}>{x}</span>)}</div><Button variant={saved?'default':'outline'} onClick={()=>setSaving(true)}>{saved?<BookmarkCheck size={16}/>:<Bookmark size={16}/>} {saved?'已收藏 · 编辑原因':'收藏并记录原因'}</Button></div></header><div className="page article-body"><section className="impression"><span className="eyebrow">OVERALL IMPRESSION</span><h2>整体印象</h2><p>{item.impression}</p></section><section className="factor-section"><SectionTitle kicker="WHAT MATTERS MOST" title="最重要的 1～3 个因素"/><ol>{item.factors.map((x,i)=><li key={x}><span>0{i+1}</span><p>{x}</p></li>)}</ol></section><section className="analysis-section"><SectionTitle kicker="LOOK CLOSER" title="展开看细节"/><p>以下是观察线索，不是评分标准。</p><div>{Object.entries(item.analysis).map(([k,v])=><details key={k}><summary><span>{k}</span><ChevronDown size={18}/></summary><p>{v}</p></details>)}</div></section></div>{saving&&<SavePanel item={item} close={()=>setSaving(false)}/>}</article>;
+  return <article className="case-detail"><div className="page"><Link className="back-link" href="/explore"><ArrowLeft size={15}/> 返回案例流</Link></div><header className="case-hero"><CaseImage item={item} sizes="(max-width: 800px) 100vw, 54vw" priority/><div><span className="eyebrow">CASE STUDY / 穿搭案例</span><h1>{item.title}</h1><p>{item.subtitle}</p><div className="tag-row">{item.tags.map(x=><span key={x}>{x}</span>)}</div><Button variant={saved?'default':'outline'} onClick={()=>setSaving(true)}>{saved?<BookmarkCheck size={16}/>:<Bookmark size={16}/>} {saved?'已收藏 · 编辑原因':'收藏并记录原因'}</Button></div></header><div className="page article-body"><section className="impression"><span className="eyebrow">OVERALL IMPRESSION</span><h2>整体印象</h2><p>{item.impression}</p></section><section className="factor-section"><SectionTitle kicker="WHAT MATTERS MOST" title="最重要的 1～3 个因素"/><ol>{item.factors.map((x,i)=><li key={x}><span>0{i+1}</span><p>{x}</p></li>)}</ol></section><section className="analysis-section"><SectionTitle kicker="FULL BREAKDOWN" title="完整拆解"/><p>以下观察线索已全部展开，你也可以按需收起。它们帮助阅读，不构成评分。</p><div>{Object.entries(item.analysis).map(([k,v])=><AnalysisDetail key={k} label={k}>{v}</AnalysisDetail>)}</div></section></div>{saving&&<SavePanel item={item} close={()=>setSaving(false)}/>}</article>;
+}
+
+function AnalysisDetail({ label, children }: { label: string; children: string }) {
+  const [open,setOpen]=useState(true);
+  return <details open={open} onToggle={event=>setOpen(event.currentTarget.open)}><summary><span>{label}</span><span className="detail-toggle">{open?'收起':'展开'} <ChevronDown size={18}/></span></summary><p>{children}</p></details>;
 }
 
 export function MePage(){
