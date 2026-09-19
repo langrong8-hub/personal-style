@@ -1,5 +1,5 @@
 export const categories = ['比例','轮廓','量感','色彩','材质','风格','细节','场景','人'];
-export const reasons = ['配色','轮廓','某件单品','材质','风格','整体氛围','摄影感觉','说不清，但就是喜欢'];
+export const reasons = ['配色','轮廓','单品','材质','风格','整体氛围','摄影感觉','说不清但喜欢'];
 export type Lesson = { id:string; category:string; kind:'principle'|'item'; title:string; subtitle:string; core:string; a:string; b:string; explanation:string; mistake:string; minutes:number; caseId:string; variable:'waist'|'color'|'shape' };
 export const lessons: Lesson[] = [
  {id:'proportion',category:'比例',kind:'principle',title:'腰线，是比例的起点',subtitle:'不改变身高，也能改变视觉重心',core:'我们感受到的上下身比例，往往取决于衣服在哪里形成分界。',a:'自然放下衣摆',b:'把衣摆收进腰头',explanation:'同样的上衣和长裤，把衣摆收进腰头后，分界向上移动，腿部的视觉长度增加；自然放下则保留纵向线条，更放松。两种选择服务于不同的表达，没有统一的最佳比例。',mistake:'高腰不等于越高越好。裤裆、腰头松量和坐下时的舒适度，同样影响穿着体验。',minutes:5,caseId:'quiet-morning',variable:'waist'},

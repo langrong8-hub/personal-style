@@ -18,6 +18,14 @@ pnpm build
 pnpm start
 ```
 
+完整工程检查：
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
 ## 页面
 
 - `/`：首页，包括今日继续、一个穿搭案例、最近学到
@@ -30,4 +38,4 @@ pnpm start
 
 ## 数据说明
 
-课程、案例和分析文字来自 `lib/data.ts` 的高质量演示数据。学习状态、A/B 选择、收藏理由和设置保存在当前浏览器的 localStorage 中，不会同步到其他设备。
+课程、案例和分析文字来自 `lib/data.ts` 的高质量演示数据。学习状态（没看过 / 学过 / 我理解了）、A/B 选择、收藏理由和设置保存在当前浏览器的 localStorage 中，不会同步到其他设备。
