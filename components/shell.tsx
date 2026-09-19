@@ -1,0 +1,8 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ArrowUpRight, BookOpen, Grid2X2, Home, UserRound } from 'lucide-react';
+import { StoreProvider,useStore } from './store';
+const nav=[{href:'/',label:'首页',en:'HOME',icon:Home},{href:'/learn',label:'学',en:'LEARN',icon:BookOpen},{href:'/explore',label:'看',en:'EXPLORE',icon:Grid2X2},{href:'/me',label:'我的',en:'MY NOTES',icon:UserRound}];
+function Frame({children}:{children:React.ReactNode}){const path=usePathname();const {error}=useStore();return <><a className="skip-link" href="#main">跳到主要内容</a><header className="site-header"><Link href="/" className="brand"><span className="brand-mark">衣</span><span>衣序<span className="brand-en">THE STYLE NOTES</span></span></Link><nav aria-label="主导航">{nav.map(n=><Link aria-current={(n.href==='/'?path==='/':path.startsWith(n.href))?'page':undefined} className={(n.href==='/'?path==='/':path.startsWith(n.href))?'active':''} href={n.href} key={n.href}>{n.label}<span>{n.en}</span></Link>)}</nav><Link href="/me" className="header-note">慢慢看，慢慢找到自己 <ArrowUpRight size={14}/></Link></header>{error&&<div role="status" className="storage-warning">{error}</div>}<main id="main">{children}</main><footer className="site-footer"><Link href="/" className="footer-brand">衣序 / THE STYLE NOTES</Link><p>穿搭没有标准答案，只有更了解自己的过程。</p><span>VOL. 01 — 从观察开始</span></footer><nav className="mobile-nav" aria-label="手机导航">{nav.map(n=><Link key={n.href} href={n.href} aria-current={(n.href==='/'?path==='/':path.startsWith(n.href))?'page':undefined}><n.icon size={19}/>{n.label}</Link>)}</nav></>}
+export function Shell({children}:{children:React.ReactNode}){return <StoreProvider><Frame>{children}</Frame></StoreProvider>}
