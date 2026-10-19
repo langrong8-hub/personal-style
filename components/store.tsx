@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 export type SavedCase = { reasons: string[]; note: string; date: string };
 export type LearningStatus = 'unseen' | 'learned' | 'understood';
@@ -22,37 +22,49 @@ const initial: AppState = {
   reduceMotion: false,
 };
 
-function stringRecord(value: unknown) {
-  const result: Record<string, string> = {};
-  if (!value || typeof value !== 'object') return result;
-  Object.entries(value).forEach(([key, item]) => {
-    if (typeof item === 'string') result[key] = item;
-  });
-  return result;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function savedRecord(value: unknown) {
-  const result: Record<string, SavedCase> = {};
-  if (!value || typeof value !== 'object') return result;
-  Object.entries(value).forEach(([key, item]) => {
-    if (
-      item && typeof item === 'object' &&
-      'reasons' in item && Array.isArray(item.reasons) && item.reasons.every((reason: unknown) => typeof reason === 'string') &&
-      'note' in item && typeof item.note === 'string' &&
-      'date' in item && typeof item.date === 'string'
-    ) result[key] = item as SavedCase;
-  });
-  return result;
+function timestamp(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return;
+  const date = new Date(value);
+  if (Number.isFinite(date.getTime())) return date.toISOString();
 }
 
-function restoreState(raw: string): AppState {
-  const saved = JSON.parse(raw) as Partial<AppState>;
+function dateRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => {
+    const date = timestamp(item);
+    return date ? [[key, date]] : [];
+  }));
+}
+
+function choiceRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, 'a' | 'b'] => entry[1] === 'a' || entry[1] === 'b'));
+}
+
+function savedRecord(value: unknown): Record<string, SavedCase> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => {
+    if (!isRecord(item) || !Array.isArray(item.reasons) || typeof item.note !== 'string') return [];
+    const date = timestamp(item.date);
+    if (!date || !item.reasons.every(reason => typeof reason === 'string')) return [];
+    return [[key, { reasons: [...new Set(item.reasons)], note: item.note, date } as SavedCase]];
+  }));
+}
+
+export function restoreState(raw: string): AppState {
+  const saved: unknown = JSON.parse(raw);
+  if (!isRecord(saved)) throw new TypeError('Invalid saved state');
+  const understood = dateRecord(saved.understood);
   return {
-    learned: stringRecord(saved.learned),
-    understood: stringRecord(saved.understood),
+    learned: { ...understood, ...dateRecord(saved.learned) },
+    understood,
     saved: savedRecord(saved.saved),
-    choices: stringRecord(saved.choices),
-    lastLesson: typeof saved.lastLesson === 'string' ? saved.lastLesson : initial.lastLesson,
+    choices: choiceRecord(saved.choices),
+    lastLesson: typeof saved.lastLesson === 'string' && saved.lastLesson ? saved.lastLesson : initial.lastLesson,
     reduceMotion: saved.reduceMotion === true,
   };
 }
@@ -74,6 +86,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(initial);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const hydrated = useRef(false);
+  const pendingUpdates = useRef<Array<(state: AppState) => AppState>>([]);
+  const needsSave = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,25 +102,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     queueMicrotask(() => {
       if (cancelled) return;
-      setState(restored);
+      const next = pendingUpdates.current.reduce((value, apply) => apply(value), restored);
+      pendingUpdates.current = [];
+      hydrated.current = true;
+      setState(next);
       setError(restoreError);
       setReady(true);
     });
     return () => { cancelled = true; };
   }, []);
 
-  function update(fn: (state: AppState) => AppState) {
-    setState(previous => {
-      const next = fn(previous);
-      try {
-        localStorage.setItem('style-notes-v01a', JSON.stringify(next));
-        setError('');
-      } catch {
-        setError('浏览器未能保存记录，本次操作仅在当前页面会话有效。');
-      }
-      return next;
-    });
-  }
+  const update = useCallback((fn: (state: AppState) => AppState) => {
+    needsSave.current = true;
+    if (!hydrated.current) {
+      pendingUpdates.current.push(fn);
+      return;
+    }
+    setState(fn);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !needsSave.current) return;
+    needsSave.current = false;
+    let saveError = '';
+    try {
+      localStorage.setItem('style-notes-v01a', JSON.stringify(state));
+    } catch {
+      saveError = '浏览器未能保存记录，本次操作仅在当前页面会话有效。';
+    }
+    queueMicrotask(() => setError(saveError));
+  }, [state, ready]);
 
   useEffect(() => {
     document.documentElement.dataset.reduceMotion = String(state.reduceMotion);
